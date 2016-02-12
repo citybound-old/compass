@@ -4,22 +4,20 @@
 
 #ifndef COMPASS_PRIMITIVES_H
 #define COMPASS_PRIMITIVES_H
+#include <Eigen/Dense>
 
-struct vec2 {
-    float x;
-    float y;
-};
+typedef Eigen::Vector2f vec2;
 
 enum curveOrientation {LEFTWARDS, RIGHTWARDS};
 
-const float thickness;
+const float thickness = 0.0;
 
 class Segment {
     float _lengthAndStraightInfo;
 
     // TODO: check this
     curveOrientation orientation () {
-        if (crossz(direction, end - start) > 0) {
+        if (direction.cross2(end - start) > 0) {
             return LEFTWARDS;
         } else {
             return RIGHTWARDS;
@@ -33,25 +31,25 @@ public:
 
     // LineSegment
     Segment (vec2 start, vec2 end)
-        :start(start), direction((end - start).normalize()), end(end)
+        :start(start), direction((end - start).normalized()), end(end)
     {
-        _lengthAndStraightInfo = (end - start).length();
+        _lengthAndStraightInfo = (end - start).norm();
     }
 
     // CircleSegment
     Segment (vec2 start, vec2 direction, vec2 end)
         :start(start), direction(direction), end(end)
     {
-        bool isStraight = (end - start).normalize() == direction;
-        if (isStraight()) {
-            _lengthAndStraightInfo = (end - start).length();
+        bool isStraight = (end - start).normalized() == direction;
+        if (isStraight) {
+            _lengthAndStraightInfo = (end - start).norm();
         } else {
 
         }
     }
 
-    float length() {
-        return abs(_lengthAndStraightInfo);
+    float norm() {
+        return std::abs(_lengthAndStraightInfo);
     }
 
     bool isStraight() {
@@ -63,24 +61,24 @@ public:
     }
 
     float radius () {
-        return (radialCenter() - start).length();
+        return (radialCenter() - start).norm();
     }
 
     vec2 midpoint () {
         auto linearMidpoint = (end + start) / 2;
-        if (isStraight()) return linearMidPoint;
+        if (isStraight()) return linearMidpoint;
         else {
-            center + ((linearMidpoint - center).normalize() * radius());
+            //center + ((linearMidpoint - center).normalized() * radius());
         }
     }
 
     vec2 endDirection () {
         if (isStraight()) return direction;
             // TODO check this
-        else return (orientation() == LEFTWARDS ? 1 : -1) * (radialCenter() - end).perpendicular().normalize();
+        else return (orientation() == LEFTWARDS ? 1 : -1) * (radialCenter() - end).unitOrthogonal();
     }
 
-    vec2 directionOf (offset) {
+    vec2 directionOf (float offset) {
 
     }
 
@@ -92,10 +90,10 @@ public:
     vec2 center;
     float radius;
 
-    Circle (center, radius) : center(center), radius(radius) {};
+    Circle (vec2 center, float radius) : center(center), radius(radius) {};
 
     bool contains(vec2 point) {
-        return (center - point).length <= this->radius + thickness/2;
+        return (center - point).norm() <= this->radius + thickness/2;
     }
 };
 
@@ -103,27 +101,14 @@ class Line {
     vec2 middle;
     vec2 direction;
 
-    Line (middle, direction) : middle(middle), direction(direction) {};
+    Line (vec2 middle, vec2 direction) : middle(middle), direction(direction) {};
 };
 
 class Ray {
     vec2 start;
     vec2 direction;
 
-    Ray (start, direction) : start(start), direction(direction) {};
-};
-
-struct Intersection {
-    float u;
-    float v;
-    vec2 position;
-
-    Intersection (float u, float v, vec2 position)
-            : u(u), v(v), position(position) {};
-
-    Intersection swapped () {
-        return Intersection(v, u, position);
-    }
+    Ray (vec2 start, vec2 direction) : start(start), direction(direction) {};
 };
 
 #endif //COMPASS_PRIMITIVES_H

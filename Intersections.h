@@ -6,6 +6,20 @@
 #define COMPASS_INTERSECTIONS_H
 
 #include "primitives.h"
+#include <range-v3/all>
+
+struct Intersection {
+    float u;
+    float v;
+    vec2 position;
+
+    Intersection (float u, float v, vec2 position)
+            : u(u), v(v), position(position) {};
+
+    Intersection swapped () {
+        return Intersection(v, u, position);
+    }
+};
 
 // TODO: also make this a view https://github.com/ericniebler/range-v3
 template <int max_n, typename T>
