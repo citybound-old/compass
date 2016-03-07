@@ -5,6 +5,7 @@
 #ifndef COMPASS_PRIMITIVES_H
 #define COMPASS_PRIMITIVES_H
 #include <Eigen/Dense>
+#include "at-most.h"
 
 typedef Eigen::Vector2f vec2;
 
@@ -29,6 +30,8 @@ public:
     vec2 end;
     vec2 direction;
 
+    Segment () {}
+
     // LineSegment
     Segment (vec2 start, vec2 end)
         :start(start), direction((end - start).normalized()), end(end)
@@ -48,7 +51,7 @@ public:
         }
     }
 
-    float norm() {
+    float length() {
         return std::abs(_lengthAndStraightInfo);
     }
 
@@ -83,6 +86,12 @@ public:
     }
 
     Segment reverse() {}
+
+    AtMost<2, Segment> subdivide (vec2 divider) {
+        if (isStraight()) {
+            return {Segment(start, divider), Segment(divider, end)};
+        }
+    };
 };
 
 class Circle {
@@ -98,6 +107,7 @@ public:
 };
 
 class Line {
+public:
     vec2 middle;
     vec2 direction;
 
@@ -105,6 +115,7 @@ class Line {
 };
 
 class Ray {
+public:
     vec2 start;
     vec2 direction;
 

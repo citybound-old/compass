@@ -1,9 +1,12 @@
-[submodule "deps/range-v3"]
-	path = deps/range-v3
-	url = https://github.com/ericniebler/range-v3.git
 [submodule "deps/eigen"]
 	path = deps/eigen
 	url = https://github.com/RLovelett/eigen
 [submodule "deps/googletest"]
 	path = deps/googletest
 	url = https://github.com/google/googletest
+[submodule "deps/lzy"]
+	path = deps/lzy
+	url = https://github.com/citybound/lzy.git
+[submodule "deps/static-queue"]
+	path = deps/static-queue
+	url = https://github.com/citybound/static-queue

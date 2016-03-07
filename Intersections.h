@@ -6,7 +6,32 @@
 #define COMPASS_INTERSECTIONS_H
 
 #include "primitives.h"
-#include <range-v3/all>
+#include "at-most.h"
+#include "angles.h"
+#include "lzy/lzy.h"
+
+using namespace lzy;
+
+const float ROUGH_TOLERANCE = 0.0000001;
+
+template<typename N1, typename N2, typename N3>
+bool roughlyEqual(N1 a, N2 b, N3 tolerance) {
+    return std::abs(b - a) < tolerance;
+}
+
+template <typename N3>
+bool roughlyEqual(vec2 a, vec2 b, N3 tolerance) {
+    return (b - a).norm() < tolerance;
+}
+
+template<typename N1, typename N2>
+bool roughlyEqual(N1 a, N2 b) {
+    return roughlyEqual(a, b, ROUGH_TOLERANCE);
+}
+
+float pointToLineDistance (vec2 point, vec2 start, vec2 direction) {
+    std::abs((point - start).dot(direction.unitOrthogonal()));
+}
 
 struct Intersection {
     float u;
@@ -16,38 +41,15 @@ struct Intersection {
     Intersection (float u, float v, vec2 position)
             : u(u), v(v), position(position) {};
 
-    Intersection swapped () {
+    Intersection (Intersection&& other)
+            : u(other.u), v(other.v), position(std::move(other.position)) {};
+
+    Intersection (const Intersection&& other)
+            : u(other.u), v(other.v), position(std::move(other.position)) {};
+
+    Intersection swapped () const {
         return Intersection(v, u, position);
     }
-};
-
-// TODO: also make this a view https://github.com/ericniebler/range-v3
-template <int max_n, typename T>
-class AtMost : public view_facade<AtMost> {
-private:
-    size_t actualElements;
-    size_t current = 0;
-    T elements[max_n];
-public:
-    AtMost = default;
-    explicit AtMost (std::initializer_list<T> a_args) {
-        elements = a_args;
-        actualElements = a_args.size();
-    }
-
-    size_t size () {
-        return actualElements;
-    }
-
-    T const & get () const {
-        return elements[current];
-    }
-
-    bool done () const {
-        return current == actualElements;
-    }
-
-    void next () {++current;}
 };
 
 AtMost<2, Intersection> intersect (Ray a, Ray b) {
@@ -63,7 +65,7 @@ AtMost<2, Intersection> intersect (Ray a, Ray b) {
         if (facingOpposite || tooFarApart) return {};
 
         // a contains b or b contains a
-        if (roughlyEqual(a.direction, (b.start - a.start).normalize()))
+        if (roughlyEqual(a.direction, (b.start - a.start).normalized()))
             return {Intersection(0, 0, b.start)}; // TODO: u or v wrong here!!
         else
             return {Intersection(0, 0, a.start)}; // TODO: u or v wrong here!!
@@ -78,8 +80,8 @@ AtMost<2, Intersection> intersect (Ray a, Ray b) {
     bool notOnRay = u < -thickness/2 || v < -thickness/2;
     if (notOnRay) return {};
 
-    u = std::max(u, 0);
-    v = std::max(v, 0);
+    u = std::max(u, 0.0f);
+    v = std::max(v, 0.0f);
 
     return {Intersection(u, v, a.start + u * a.direction)};
 }
@@ -89,7 +91,7 @@ AtMost<2, Intersection> intersect (Line a, Line b) {
     bool isParallel = roughlyEqual(determinant, 0);
 
     if (isParallel) {
-        bool tooFarApart = pointToLineDistance(a.start, b.start, b.direction) > thickness/2;
+        bool tooFarApart = pointToLineDistance(a.middle, b.middle, b.direction) > thickness/2;
         if (tooFarApart) return {};
 
         // a == b
@@ -110,7 +112,7 @@ AtMost<2, Intersection> intersect (Ray a, Line b) {
     bool isParallel = roughlyEqual(determinant, 0);
 
     if (isParallel) {
-        bool tooFarApart = pointToLineDistance(a.start, b.start, b.direction) > thickness/2;
+        bool tooFarApart = pointToLineDistance(a.start, b.middle, b.direction) > thickness/2;
         if (tooFarApart) return {};
 
         // b contains a
@@ -126,28 +128,28 @@ AtMost<2, Intersection> intersect (Ray a, Line b) {
     bool notOnRay = u < -thickness/2;
     if (notOnRay) return {};
 
-    u = std::max(u, 0);
+    u = std::max(u, 0.0f);
 
     return {Intersection(u, v, a.start + u * a.direction)};
 }
 AtMost<2, Intersection> intersect (Line a, Ray b) {
-    return intersect(b, a) | view::transform(&Intersection::swapped);
+    return from(intersect(b, a)) >> map(&Intersection::swapped) >> to<AtMost<2, Intersection>>();
 }
 
 AtMost<2, Intersection> intersect (Ray a, Segment b) {
     if (b.isStraight()) {
-        auto potentials = intersect(a, Ray(b.start, b.direction));
-        return potentials | view::remove_if([](Intersection i){
-            return i.v <= b.length() + thickness/2;
-        }) | view::transform([](Intersection i){
-            return Intersection(i.u, std::min(i.v, 1), i.position);
-        });
+        auto potentials = from(intersect(a, Ray(b.start, b.direction))) >> (
+            filter([&](const Intersection& i) {return i.v <= b.length() + thickness/2;})
+            | map([](const Intersection& i) {return Intersection(i.u, std::min(i.v, 1.0f), i.position);})
+        ) >> to<AtMost<2, Intersection>>();
+
+        return potentials;
     } else {
-        throw std::exception("not implemented");
+
     }
 }
 AtMost<2, Intersection> intersect (Segment a, Ray b) {
-    return intersect(b, a) | view::transform(&Intersection::swapped);
+    return from(intersect(b, a)) >> map(&Intersection::swapped) >> to<AtMost<2, Intersection>>();
 }
 
 AtMost<2, Intersection> intersect (Segment a, Segment b) {
@@ -156,7 +158,7 @@ AtMost<2, Intersection> intersect (Segment a, Segment b) {
 
         auto da = a.end - a.start;
         auto db = b.end - b.start;
-        auto orientation = crossz(a.direction, b.direction);
+        auto orientation = a.direction.cross2(b.direction);
 
         bool isParallel = roughlyEqual(orientation, 0);
         if (isParallel) {
@@ -165,14 +167,50 @@ AtMost<2, Intersection> intersect (Segment a, Segment b) {
             if (tooFarApart || bothZeroLength) return {};
 
             // TODO: properly (a on b, b on a, ...)
-            throw std::exception("not implemented");
+            throw "not implemented";
         }
 
-        auto determinant = crossz(db, da);
+        auto determinant = db.cross2(da);
 
     } else {
-        throw std::exception("not implemented");
+        throw "not implemented";
     }
+};
+
+AtMost<2, Intersection> intersect (Circle a, Circle b) {
+    auto aToB = (b.center - a.center);
+    auto aToBDist = aToB.norm();
+
+    if (roughlyEqual(aToBDist, 0) && roughlyEqual(a.radius, b.radius)) return {};
+    if (aToBDist > (a.radius + b.radius + ROUGH_TOLERANCE)) return {};
+    if (aToBDist < std::abs(a.radius - b.radius) - ROUGH_TOLERANCE) return {};
+
+    auto aToCentroidDist = (pow(a.radius, 2) - pow(b.radius, 2) + pow(aToBDist, 2)) / (2 * aToBDist);
+    auto intersectionToCentroidDist = sqrt(pow(a.radius, 2) - pow(aToCentroidDist, 2));
+
+    auto centroid = a.center + (aToB * aToCentroidDist / aToBDist);
+
+    auto centroidToIntersection = aToB.unitOrthogonal() * intersectionToCentroidDist;
+
+    // solution 1
+    auto solution1Position = centroid + centroidToIntersection;
+    auto&& solution1 = Intersection(
+            angleTheta(solution1Position - a.center),
+            angleTheta(solution1Position - b.center),
+            solution1Position
+    );
+
+    if (roughlyEqual(intersectionToCentroidDist, 0)) return {std::move(solution1)};
+
+    // solution 2
+    auto solution2Position = centroid - centroidToIntersection;
+    auto&& solution2 = Intersection(
+            angleTheta(solution2Position - a.center),
+            angleTheta(solution2Position - b.center),
+            solution2Position
+    );
+
+    return {std::move(solution1), std::move(solution2)};
 };
 
 #endif //COMPASS_INTERSECTIONS_H
