@@ -10,3 +10,6 @@
 [submodule "deps/static-queue"]
 	path = deps/static-queue
 	url = https://github.com/citybound/static-queue
+[submodule "deps/whiteboard"]
+	path = deps/whiteboard
+	url = https://github.com/citybound/whiteboard.git
