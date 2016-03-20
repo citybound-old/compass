@@ -9,26 +9,32 @@
 
 typedef Eigen::Vector2f vec2;
 
-enum curveOrientation {LEFTWARDS, RIGHTWARDS};
-
 const float thickness = 0.0;
+
+float angleBetween (vec2 a, vec2 b) {
+    float theta = a.dot(b) / (a.norm() * b.norm());
+    theta = std::min(1.0f, std::max(-1.0f, theta));
+    return std::acos(theta);
+}
+
+float angleBetweenWithDirection (vec2 a, vec2 aDirection, vec2 b) {
+    float simpleAngle = angleBetween(a, b);
+    vec2 linearDirection = (b - a).normalized();
+
+    if (aDirection.dot(linearDirection) >= 0) {
+        return simpleAngle;
+    } else {
+        return 2 * M_PI - simpleAngle;
+    }
+}
 
 class Segment {
     float _lengthAndStraightInfo;
 
-    // TODO: check this
-    curveOrientation orientation () {
-        if (direction.cross2(end - start) > 0) {
-            return LEFTWARDS;
-        } else {
-            return RIGHTWARDS;
-        }
-    }
-
 public:
-    vec2 start;
-    vec2 end;
-    vec2 direction;
+    const vec2 start;
+    const vec2 end;
+    const vec2 direction;
 
     Segment () {}
 
@@ -47,9 +53,17 @@ public:
         if (isStraight) {
             _lengthAndStraightInfo = (end - start).norm();
         } else {
-
+            _lengthAndStraightInfo = - angleSpan() * radius();
         }
     }
+
+private:
+    float angleSpan() {
+        vec2 center = radialCenter();
+        return angleBetweenWithDirection(start - center, direction, end - center);
+    }
+
+public:
 
     float length() {
         return std::abs(_lengthAndStraightInfo);
@@ -60,36 +74,52 @@ public:
     }
 
     vec2 radialCenter () {
-
+        return start + signedRadius() * direction.unitOrthogonal();
     }
+private:
+    float signedRadius () {
+        auto halfChord = (end - start) / 2;
+        return halfChord.squaredNorm() / (direction.unitOrthogonal().dot(halfChord));
+    }
+public:
 
     float radius () {
-        return (radialCenter() - start).norm();
+        return std::abs(signedRadius());
     }
 
     vec2 midpoint () {
         auto linearMidpoint = (end + start) / 2;
         if (isStraight()) return linearMidpoint;
         else {
-            //center + ((linearMidpoint - center).normalized() * radius());
+            auto center = radialCenter();
+            return center + ((linearMidpoint - center).normalized() * radius());
         }
     }
 
     vec2 endDirection () {
         if (isStraight()) return direction;
-            // TODO check this
-        else return (orientation() == LEFTWARDS ? 1 : -1) * (radialCenter() - end).unitOrthogonal();
+        else return std::copysign(1, signedRadius()) * (end - radialCenter()).unitOrthogonal();
     }
 
     vec2 directionOf (float offset) {
-
+        if (isStraight()) return direction;
+        else {
+            auto rotation = Eigen::Rotation2D<float>((offset/length()) * angleSpan());
+            return std::copysign(1, signedRadius()) * (rotation * (start - radialCenter())).unitOrthogonal();
+        }
     }
 
-    Segment reverse() {}
+    Segment reverse() {
+        if (isStraight()) return Segment(end, start);
+        else return Segment(end, endDirection(), start);
+    }
 
     AtMost<2, Segment> subdivide (vec2 divider) {
         if (isStraight()) {
             return {Segment(start, divider), Segment(divider, end)};
+        } else {
+            vec2 dividerDirection = std::copysign(1, signedRadius()) * (divider - radialCenter()).unitOrthogonal();
+            return {Segment(start, direction, divider), Segment(divider, dividerDirection, end)};
         }
     };
 };

@@ -30,7 +30,7 @@ bool roughlyEqual(N1 a, N2 b) {
 }
 
 float pointToLineDistance (vec2 point, vec2 start, vec2 direction) {
-    std::abs((point - start).dot(direction.unitOrthogonal()));
+    return std::abs((point - start).dot(direction.unitOrthogonal()));
 }
 
 struct Intersection {
@@ -148,6 +148,7 @@ AtMost<2, Intersection> intersect (Ray a, Segment b) {
 
     }
 }
+
 AtMost<2, Intersection> intersect (Segment a, Ray b) {
     return from(intersect(b, a)) >> map(&Intersection::swapped) >> to<AtMost<2, Intersection>>();
 }
