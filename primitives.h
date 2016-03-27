@@ -9,7 +9,7 @@
 
 typedef Eigen::Vector2f vec2;
 
-const float thickness = 0.0;
+const float thickness = 0.000001;
 
 float angleBetween (vec2 a, vec2 b) {
     float theta = a.dot(b) / (a.norm() * b.norm());
@@ -27,6 +27,34 @@ float angleBetweenWithDirection (vec2 a, vec2 aDirection, vec2 b) {
         return 2 * M_PI - simpleAngle;
     }
 }
+
+class Circle {
+public:
+    vec2 center;
+    float radius;
+
+    Circle (vec2 center, float radius) : center(center), radius(radius) {};
+
+    bool contains(vec2 point) {
+        return (center - point).norm() <= this->radius + thickness/2;
+    }
+};
+
+class Line {
+public:
+    vec2 start;
+    vec2 direction;
+
+    Line (vec2 start, vec2 direction) : start(start), direction(direction) {};
+};
+
+class Ray {
+public:
+    vec2 start;
+    vec2 direction;
+
+    Ray (vec2 start, vec2 direction) : start(start), direction(direction) {};
+};
 
 class Segment {
     float _lengthAndStraightInfo;
@@ -109,6 +137,34 @@ public:
         }
     }
 
+    float offsetAt (vec2 point) {
+        if (isStraight()) return (point - start).norm();
+        else {
+            float angleAToPoint = angleBetweenWithDirection(start - radialCenter(), direction, point - radialCenter());
+            float angleBToPoint = angleBetweenWithDirection(end - radialCenter(), -endDirection(), point - radialCenter());
+            float tolerance = thickness / radius();
+
+            if (angleAToPoint <= angleSpan() + tolerance &&
+                angleBToPoint <= angleSpan() + tolerance) {
+                return std::min(angleSpan(), std::max(0.0f, angleAToPoint)) * radius();
+            } else {
+                return (std::min(angleAToPoint, angleBToPoint) - angleSpan()) * radius();
+            }
+        }
+    }
+
+    float alphaValueAt (vec2 position) {
+        return offsetAt(position) / length();
+    }
+
+    bool wedgeContainsPoint (vec2 point) {
+        float angleAToPoint = angleBetweenWithDirection(start - radialCenter(), direction, point - radialCenter());
+        float angleBToPoint = angleBetweenWithDirection(end - radialCenter(), -endDirection(), point - radialCenter());
+        float tolerance = thickness / radius();
+
+        return angleAToPoint <= angleSpan() + tolerance && angleBToPoint <= angleSpan() + tolerance;
+    }
+
     Segment reverse() {
         if (isStraight()) return Segment(end, start);
         else return Segment(end, endDirection(), start);
@@ -122,34 +178,6 @@ public:
             return {Segment(start, direction, divider), Segment(divider, dividerDirection, end)};
         }
     };
-};
-
-class Circle {
-public:
-    vec2 center;
-    float radius;
-
-    Circle (vec2 center, float radius) : center(center), radius(radius) {};
-
-    bool contains(vec2 point) {
-        return (center - point).norm() <= this->radius + thickness/2;
-    }
-};
-
-class Line {
-public:
-    vec2 middle;
-    vec2 direction;
-
-    Line (vec2 middle, vec2 direction) : middle(middle), direction(direction) {};
-};
-
-class Ray {
-public:
-    vec2 start;
-    vec2 direction;
-
-    Ray (vec2 start, vec2 direction) : start(start), direction(direction) {};
 };
 
 #endif //COMPASS_PRIMITIVES_H

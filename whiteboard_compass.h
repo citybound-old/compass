@@ -32,7 +32,7 @@ wb::draw_stream& operator<< (wb::draw_stream& drawStream, Circle circle) {
 }
 
 wb::draw_stream& operator<< (wb::draw_stream& drawStream, Line line) {
-    return drawStream << Segment(line.middle - 1000 * line.direction, line.middle + 1000 * line.direction);
+    return drawStream << Segment(line.start - 1000 * line.direction, line.start + 1000 * line.direction);
 }
 
 wb::draw_stream& operator<< (wb::draw_stream& drawStream, Ray ray) {
