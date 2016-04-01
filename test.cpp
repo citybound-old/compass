@@ -7,7 +7,7 @@
 #include "primitives.h"
 #include "intersections.h"
 #include "whiteboard/whiteboard.h"
-#include "whiteboard_compass.h"
+#include "whiteboard-compass.h"
 
 typedef Eigen::Vector2f vec2;
 
@@ -143,6 +143,51 @@ TEST(CompassIntersections, CircleCircleInsideOutside) {
 TEST(CompassIntersections, CircleCircleSame) {
     auto a = Circle({0.5, 0.5}, 0.5);
     auto b = Circle({0.5, 0.5}, 0.5);
+    auto i = intersect(a, b);
+
+    EXPECT_EQ(0, i.size());
+}
+
+TEST(CompassIntersections, LineCircleIntersection) {
+    whiteboard << wb::clear;
+    auto a = Line({0.5, 0}, {0, 1});
+    auto b = Circle({0.5, 0.5}, 0.25);
+    auto i = intersect(a, b);
+    whiteboard << a << b;
+
+    EXPECT_EQ(2, i.size());
+
+    EXPECT_NEAR(0.25, i[0].alongA, PRECISION);
+    EXPECT_NEAR(1.5 * M_PI * b.radius, i[0].alongB, PRECISION);
+    EXPECT_NEAR(0.75, i[1].alongA, PRECISION);
+    EXPECT_NEAR(0.5 * M_PI * b.radius, i[1].alongB, PRECISION);
+
+    whiteboard << wb::color{255, 0, 0, 255} << i[0].position << i[1].position;
+
+    EXPECT_VECTOR_ROUGHLY_EQUAL(vec2(0.5, 0.25), i[0].position);
+    EXPECT_VECTOR_ROUGHLY_EQUAL(vec2(0.5, 0.75), i[1].position);
+}
+
+TEST(CompassIntersections, LineCircleTouch) {
+    whiteboard << wb::clear;
+    auto a = Line({0.25, 0}, {0, 1});
+    auto b = Circle({0.5, 0.5}, 0.25);
+    auto i = intersect(a, b);
+    whiteboard << a << b;
+
+    EXPECT_EQ(1, i.size());
+
+    EXPECT_NEAR(0.5, i[0].alongA, PRECISION);
+    EXPECT_NEAR(M_PI * b.radius, i[0].alongB, PRECISION);
+
+    whiteboard << wb::color{255, 0, 0, 255} << i[0].position;
+
+    EXPECT_VECTOR_ROUGHLY_EQUAL(vec2(0.25, 0.5), i[0].position);
+}
+
+TEST(CompassIntersections, LineCircleNoIntersection) {
+    auto a = Line({0.1, 0}, {0, 1});
+    auto b = Circle({0.5, 0.5}, 0.25);
     auto i = intersect(a, b);
 
     EXPECT_EQ(0, i.size());
@@ -433,26 +478,40 @@ TEST(CompassIntersections, LineSegmentLineSegmentTipStartToStart) {
     EXPECT_VECTOR_ROUGHLY_EQUAL(vec2(0.5, 0.5), i[0].position);
 }
 
-//TEST(CompassIntersections, ArcSegmentArcSegmentIntersection1) {
-//    auto a = Segment({0, 0}, {0, 1}, {1, 1});
-//    auto b = Segment({1, 0}, {0, 1}, {0, 1});
-//    auto i = intersect(a, b);
-//
-//    EXPECT_EQ(1, i.size());
-//
-//    EXPECT_VECTOR_ROUGHLY_EQUAL(vec2(0.5, 0.8660253882408142), i[0].position);
-//}
-//
-//TEST(CompassIntersections, ArcSegmentArcSegmentIntersection2) {
-//    auto a = Segment({0.25, 0}, {1, 0}, {0.25, 1});
-//    auto b = Segment({0.75, 0}, {-1, 0}, {0.75, 1});
-//    auto i = intersect(a, b);
-//
-//    EXPECT_EQ(2, i.size());
-//
-//    EXPECT_VECTOR_ROUGHLY_EQUAL(vec2(0.5, 1 - 0.0669872984290123), i[0].position);
-//    EXPECT_VECTOR_ROUGHLY_EQUAL(vec2(0.5, 0.0669872984290123), i[1].position);
-//}
+TEST(CompassIntersections, ArcSegmentArcSegmentIntersection1) {
+    whiteboard << wb::clear;
+    auto a = Segment({0, 0}, {0, 1}, {1, 1});
+    auto b = Segment({1, 0}, {0, 1}, {0, 1});
+    auto i = intersect(a, b);
+    whiteboard << a << b;
+
+    EXPECT_EQ(1, i.size());
+    whiteboard << wb::color{255, 0, 0, 255} << i[0].position;
+
+    EXPECT_NEAR(2.0/3.0 * a.length(), i[0].alongA, PRECISION);
+    EXPECT_NEAR(2.0/3.0 * b.length(), i[0].alongB, PRECISION);
+
+    EXPECT_VECTOR_ROUGHLY_EQUAL(vec2(0.5, 0.8660253882408142), i[0].position);
+}
+
+TEST(CompassIntersections, ArcSegmentArcSegmentIntersection2) {
+    whiteboard << wb::clear;
+    auto a = Segment({0.25, 0}, {1, 0}, {0.25, 1});
+    auto b = Segment({0.75, 0}, {-1, 0}, {0.75, 1});
+    auto i = intersect(a, b);
+    whiteboard << a << b;
+
+    EXPECT_EQ(2, i.size());
+    whiteboard << wb::color{255, 0, 0, 255} << i[0].position << i[1].position;
+
+    EXPECT_NEAR(1.0/6.0 * a.length(), i[0].alongA, PRECISION);
+    EXPECT_NEAR(1.0/6.0 * b.length(), i[0].alongB, PRECISION);
+    EXPECT_NEAR(5.0/6.0 * a.length(), i[1].alongA, PRECISION);
+    EXPECT_NEAR(5.0/6.0 * b.length(), i[1].alongB, PRECISION);
+
+    EXPECT_VECTOR_ROUGHLY_EQUAL(vec2(0.5, 0.0669872984290123), i[0].position);
+    EXPECT_VECTOR_ROUGHLY_EQUAL(vec2(0.5, 1 - 0.0669872984290123), i[1].position);
+}
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);

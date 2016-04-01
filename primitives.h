@@ -6,27 +6,11 @@
 #define COMPASS_PRIMITIVES_H
 #include <Eigen/Dense>
 #include "at-most.h"
+#include "angles.h"
 
 typedef Eigen::Vector2f vec2;
 
-const float thickness = 0.000001;
-
-float angleBetween (vec2 a, vec2 b) {
-    float theta = a.dot(b) / (a.norm() * b.norm());
-    theta = std::min(1.0f, std::max(-1.0f, theta));
-    return std::acos(theta);
-}
-
-float angleBetweenWithDirection (vec2 a, vec2 aDirection, vec2 b) {
-    float simpleAngle = angleBetween(a, b);
-    vec2 linearDirection = (b - a).normalized();
-
-    if (aDirection.dot(linearDirection) >= 0) {
-        return simpleAngle;
-    } else {
-        return 2 * M_PI - simpleAngle;
-    }
-}
+const float thickness = 0.0001;
 
 class Circle {
 public:
@@ -36,7 +20,11 @@ public:
     Circle (vec2 center, float radius) : center(center), radius(radius) {};
 
     bool contains(vec2 point) {
-        return (center - point).norm() <= this->radius + thickness/2;
+        return (center - point).norm() <= radius + thickness/2;
+    }
+
+    float offsetAt(vec2 point) {
+        return angleBetweenWithDirection({1, 0}, {0, 1}, point - center) * radius;
     }
 };
 
@@ -138,7 +126,7 @@ public:
     }
 
     float offsetAt (vec2 point) {
-        if (isStraight()) return (point - start).norm();
+        if (isStraight()) return direction.dot(point - start);
         else {
             float angleAToPoint = angleBetweenWithDirection(start - radialCenter(), direction, point - radialCenter());
             float angleBToPoint = angleBetweenWithDirection(end - radialCenter(), -endDirection(), point - radialCenter());
@@ -148,21 +136,27 @@ public:
                 angleBToPoint <= angleSpan() + tolerance) {
                 return std::min(angleSpan(), std::max(0.0f, angleAToPoint)) * radius();
             } else {
-                return (std::min(angleAToPoint, angleBToPoint) - angleSpan()) * radius();
+                if (angleAToPoint <= angleBToPoint) return angleAToPoint * radius();
+                else return -(angleBToPoint - angleSpan()) * radius();
             }
         }
     }
 
-    float alphaValueAt (vec2 position) {
-        return offsetAt(position) / length();
+    float distanceTo(vec2 point) {
+            float offsetAlong = offsetAt(point);
+            if (offsetAlong < 0)
+                return (point - start).norm();
+            else if (offsetAlong <= length())
+                if (isStraight())
+                    return std::abs(direction.unitOrthogonal().dot(point - start));
+                else return std::abs((point - radialCenter()).norm() - radius());
+            else
+                return (point - end).norm();
     }
 
-    bool wedgeContainsPoint (vec2 point) {
-        float angleAToPoint = angleBetweenWithDirection(start - radialCenter(), direction, point - radialCenter());
-        float angleBToPoint = angleBetweenWithDirection(end - radialCenter(), -endDirection(), point - radialCenter());
-        float tolerance = thickness / radius();
-
-        return angleAToPoint <= angleSpan() + tolerance && angleBToPoint <= angleSpan() + tolerance;
+    bool contains (vec2 pointAnywhere) {
+        float distance = distanceTo(pointAnywhere);
+        return distance < thickness/2;
     }
 
     Segment reverse() {
