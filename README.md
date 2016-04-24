@@ -1,18 +1,18 @@
-*Dieser Code ist Teil von und entwickelt für [Citybound](http://cityboundsim.com).
-Irgendwann könnte er stabil und allgemein benutzbar werden!!*
+*This code is part of and developed for [Citybound](http://cityboundsim.com).
+ At some point in the future it might become stable and generally useful!*
 
 # compass
 
-##Umfangreiche und fehlertolerante Rechengeometrie-Bibliothek
+## Full-featured and error-tolerant geometry library
 
-Diese Bibliothek bietet die folgenden geometrischen Funktionalitäten:
+This library offers the following geometrical functionality:
 
-* [x] Geometrische Primitive (Gerade, Kreis, Strahl, Linien-/Bogensegment)
-* [x] Schnittpunkte zwischen allen Primitiven
-* [ ] Pfade und Formen basierend auf Primitiven
-* [ ] Bool'sche Operationen zwischen Formen
-* [ ] Gerade Polygon-Skelette zum Puffern von Formen und Konstruktion von Dächern
+* [x] Primitives (Line, Circle, Ray, Line-/Arcsegment)
+* [x] Intersections between all primitives
+* [ ] Paths and Shapes based on primitives
+* [ ] Boolean operations on Shapes
+* [ ] Straight Polygons Skeletons to construct roofs and other architectural shapes
 
-## Lizenz
+## License
 
-MIT, siehe [LICENSE.md](LICENSE.md) für Details.
+MIT, see [LICENSE.md](LICENSE.md) for details.
